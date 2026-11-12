@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CYBER-TERMINAL // GLOBAL EXPLOIT FRAMEWORK V9.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة Leaflet للخرائط التفاعلية -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
         
@@ -30,14 +33,9 @@
             background-size: 20px 20px;
         }
 
-        /* تأثير وميض المؤشر */
-        .blink::after {
-            content: '_';
-            animation: blink 1s infinite;
-        }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
+        /* تنسيق مظهر الخريطة لتتطابق مع نمط السايبر */
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+            filter: hue-rotate(110deg) invert(90%) contrast(150%) brightness(80%);
         }
 
         /* سكرول بار مخصص */
@@ -58,7 +56,7 @@
 </head>
 <body class="radar-grid min-h-screen p-4 md:p-6">
 
-    <!-- عنصر الصوت الموجه لملفك المحلي (استبدل music.mp3 باسم ملفك الفعلي) -->
+    <!-- عنصر الصوت الخلفي (استبدل music.mp3 باسم ملفك المحلي) -->
     <audio id="bgMusic" loop>
         <source src="music.mp3" type="audio/mpeg">
         متصفحك لا يدعم تشغيل الملفات الصوتية.
@@ -74,7 +72,6 @@
         <div class="flex items-center space-x-4 space-x-reverse text-xs text-green-400/85 flex-wrap gap-y-2">
             <div>حالة الاتصال: <span class="text-green-400 font-bold">متصل [SECURE TUNNEL]</span></div>
             <div>العقدة: <span class="text-green-400 font-bold">NODE-X9 // KSA-IQ</span></div>
-            <!-- زر التحكم بالموسيقى -->
             <button onclick="toggleAudio()" id="audio-btn" class="bg-green-950/60 hover:bg-green-900 border border-green-500/50 px-2 py-1 rounded text-green-300 text-xs transition">
                 🔊 تشغيل الموسيقى
             </button>
@@ -87,25 +84,29 @@
 
         <!-- العمود الأول: استطلاع الأهداف والشبكات -->
         <section class="space-y-6">
-            <!-- وحدة تحديد المواقع والرادار -->
+            <!-- وحدة تحديد المواقع والخريطة التفاعلية -->
             <div class="glow-box bg-black/90 rounded-lg p-5">
                 <h2 class="text-sm font-bold tracking-widest text-green-300 mb-4 border-b border-green-500/30 pb-2">
-                    [+] رادار الأهداف الجغرافي (GPS TRACKER)
+                    [+] رادار الأهداف الجغرافي (GPS MAP TRACKER)
                 </h2>
-                <div class="relative h-48 bg-green-950/20 rounded border border-green-500/20 flex items-center justify-center overflow-hidden mb-4">
-                    <!-- خطوط الرادار التبادلية -->
-                    <div class="absolute inset-0 flex items-center justify-center">
-                        <div class="w-32 h-32 rounded-full border border-green-500/20"></div>
-                        <div class="absolute w-20 h-20 rounded-full border border-green-500/30"></div>
-                        <div class="absolute w-8 h-8 rounded-full border border-green-500/50"></div>
-                        <div class="absolute w-full h-[1px] bg-green-500/20"></div>
-                        <div class="absolute h-full w-[1px] bg-green-500/20"></div>
+                
+                <!-- حاوية الخريطة -->
+                <div id="map" class="relative h-48 rounded border border-green-500/30 overflow-hidden mb-3 z-10"></div>
+                
+                <!-- إدخال الإحداثيات اليدوية -->
+                <div class="grid grid-cols-2 gap-2 mb-3 text-xs">
+                    <div>
+                        <label class="text-[10px] text-green-400/70">خط العرض (LAT):</label>
+                        <input type="text" id="input-lat" value="33.3152" class="w-full bg-black border border-green-500/30 rounded px-2 py-1 text-green-300 font-mono">
                     </div>
-                    <div class="absolute w-3 h-3 bg-green-400 rounded-full glow-text animate-pulse"></div>
-                    <span class="absolute bottom-2 left-2 text-[10px] text-green-400/70 font-mono">LAT: 33.3152° N | LNG: 44.3661° E</span>
+                    <div>
+                        <label class="text-[10px] text-green-400/70">خط الطول (LNG):</label>
+                        <input type="text" id="input-lng" value="44.3661" class="w-full bg-black border border-green-500/30 rounded px-2 py-1 text-green-300 font-mono">
+                    </div>
                 </div>
-                <button onclick="triggerScan()" class="w-full bg-green-950/40 hover:bg-green-900/60 border border-green-500/50 text-green-300 py-2 rounded text-sm transition duration-200 glow-text">
-                    تشغيل ماسح الرادار الشامل
+
+                <button onclick="updateMapLocation()" class="w-full bg-green-950/40 hover:bg-green-900/60 border border-green-500/50 text-green-300 py-2 rounded text-sm transition duration-200 glow-text">
+                    تحديث الموقع على الخريطة
                 </button>
             </div>
 
@@ -182,6 +183,39 @@
     </main>
 
     <script>
+        // تهيئة الخريطة التفاعلية
+        let defaultLat = 33.3152;
+        let defaultLng = 44.3661;
+        const map = L.map('map').setView([defaultLat, defaultLng], 13);
+
+        // إضافة طبقة الخريطة مع تلوينها لتتناسب مع واجهة السايبر (أخضر داكن)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // إضافة مؤشر (Marker) للموقع المستهدف
+        let marker = L.marker([defaultLat, defaultLng]).addTo(map);
+        marker.bindPopup("<b>العقدة المستهدفة النشطة</b>").openPopup();
+
+        // دالة تحديث الموقع عند إدخال الإحداثيات والضغط على الزر
+        function updateMapLocation() {
+            const lat = parseFloat(document.getElementById('input-lat').value);
+            const lng = parseFloat(document.getElementById('input-lng').value);
+
+            if (isNaN(lat) || isNaN(lng)) {
+                appendLog("خطأ: يرجى إدخال إحداثيات صحيحة (أرقام فقط).", "text-red-400");
+                return;
+            }
+
+            // تحريك الخريطة وتحديث مكان المؤشر
+            map.setView([lat, lng], 14);
+            marker.setLatLng([lat, lng]);
+            marker.bindPopup(`<b>الإحداثيات المحدثة:</b><br>LAT: ${lat} | LNG: ${lng}`).openPopup();
+
+            appendLog(`تم تحديث إحداثيات الرادار الجغرافي بنجاح -> [LAT: ${lat}, LNG: ${lng}]`, "text-green-300");
+        }
+
         // تحديث الساعة الحية في الهيدر
         setInterval(() => {
             const now = new Date();
@@ -207,7 +241,7 @@
             }
         }
 
-        // وظائف تفاعلية لمحاكاة أجهزة الاختراق والبرامج العالمية
+        // وظائف سجلات النظام
         const logsContainer = document.getElementById('terminal-logs');
 
         function appendLog(message, colorClass = "text-green-400") {
@@ -222,7 +256,7 @@
         function triggerScan() {
             appendLog("جاري تفعيل رادار الأقمار الصناعية لتحديد نطاق الإحداثيات...", "text-green-300");
             setTimeout(() => {
-                appendLog("تم رصد 3 أجهزة متصلة ضمن نطاق 500 متر. جاري مطابقة البيانات الجغرافية...", "text-green-400");
+                appendLog("تم رصد الهدف على الخريطة بنجاح.", "text-green-400");
             }, 1200);
         }
 
